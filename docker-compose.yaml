@@ -1,7 +1,7 @@
 services:
   langtrace-app:
     container_name: langtrace
-    image: scale3labs/langtrace-client:latest
+    image: langtrace-custom:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -16,6 +16,8 @@ services:
     # volumes:
     #   - .:/app
     restart: on-failure:5
+    networks:
+      - agents-net
     depends_on:
       postgres-db:
         condition: service_started
@@ -33,6 +35,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - agents-net
 
   clickhouse-db:
     container_name: langtrace-clickhouse
@@ -53,6 +57,8 @@ services:
       interval: 30s
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - agents-net
 
   langtrace-app-prod:
     extends:
@@ -61,7 +67,13 @@ services:
       target: production
     profiles:
       - production
+    networks:
+      - agents-net
 
 volumes:
   postgres-data:
   clickhouse-data:
+
+networks:
+  agents-net:
+    external: true

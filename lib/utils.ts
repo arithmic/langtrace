@@ -292,8 +292,10 @@ export function normalizeOTELData(inputData: any[]): Normalized[] {
       const start = nanosecondsToDateTimeString(inputData.startTimeUnixNano);
       const end = nanosecondsToDateTimeString(inputData.endTimeUnixNano);
       const attributesObject: { [key: string]: any } = {};
-
-      inputData.attributes?.forEach(
+      console.log("data : ",inputData.attributes)
+      console.log("type : ",typeof inputData.attributes)
+      if(inputData.attributes && Array.isArray(inputData.attributes)){
+        inputData.attributes?.forEach(
         (attr: {
           value: { stringValue: undefined; intValue: undefined };
           key: string | number;
@@ -305,6 +307,17 @@ export function normalizeOTELData(inputData: any[]): Normalized[] {
           }
         }
       );
+      } else if (inputData.attributes && typeof inputData.attributes === 'object') {
+        Object.keys(inputData.attributes).forEach((key) => {
+          const attr = inputData.attributes[key];
+          if (attr.stringValue !== undefined) {
+            attributesObject[key] = attr.stringValue;
+          } else if (attr.intValue !== undefined) {
+            attributesObject[key] = attr.intValue;
+          }
+        });
+      }
+      console.log("printed attributes : ",attributesObject);
       const attributes = JSON.stringify(attributesObject, null);
 
       // process event attributes and convert the attributes list to an object

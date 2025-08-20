@@ -15,7 +15,7 @@ import protobuf from "protobufjs";
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type");
-
+    console.log("req : ",req);
     let data;
     if (contentType === "application/x-protobuf") {
       data = await decodeProtobuf(req);
