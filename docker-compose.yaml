@@ -1,11 +1,12 @@
 services:
   langtrace-app:
     container_name: langtrace
+    # image: langtrace-custom:latest
     image: scale3labs/langtrace-client:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   target: development
     working_dir: /app
     env_file:
       - .env
@@ -16,6 +17,8 @@ services:
     # volumes:
     #   - .:/app
     restart: on-failure:5
+    networks:
+      - agents-net
     depends_on:
       postgres-db:
         condition: service_started
@@ -30,9 +33,11 @@ services:
     env_file:
       - .env
     ports:
-      - "5432:5432"
+      - "6432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - agents-net
 
   clickhouse-db:
     container_name: langtrace-clickhouse
@@ -53,6 +58,8 @@ services:
       interval: 30s
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - agents-net
 
   langtrace-app-prod:
     extends:
@@ -61,7 +68,13 @@ services:
       target: production
     profiles:
       - production
+    networks:
+      - agents-net
 
 volumes:
   postgres-data:
   clickhouse-data:
+
+networks:
+  agents-net:
+    external: true
