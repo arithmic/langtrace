@@ -2,9 +2,33 @@ import { authOptions } from "@/lib/auth/options";
 import prisma from "@/lib/prisma";
 import { TraceService } from "@/lib/services/trace_service";
 import { calculatePriceFromUsage, hashApiKey } from "@/lib/utils";
+import { ClickhouseBaseClient } from "@/lib/clients/scale3_clickhouse/client/client";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
+import sql from "sql-bricks";
+
+// ClickHouse client for agent API key validation
+const clickhouseClient = ClickhouseBaseClient.getInstance();
+const AGENT_PROJECT_TABLE = "agent_project_mapping";
+
+// Function to check if API key exists in agent system (ClickHouse)
+async function validateAgentApiKey(apiKey: string, projectId: string): Promise<boolean> {
+  try {
+    const tableExists = await clickhouseClient.checkTableExists(AGENT_PROJECT_TABLE);
+    if (!tableExists) {
+      return false;
+    }
+
+    const queryString = `* FROM ${AGENT_PROJECT_TABLE} WHERE api_key = '${apiKey}' AND project_id = '${projectId}' ORDER BY updated_at DESC LIMIT 1`;
+    const results = await clickhouseClient.find<any[]>(sql.select(queryString));
+    
+    return results.length > 0;
+  } catch (error) {
+    console.error("Error validating agent API key:", error);
+    return false;
+  }
+}
 
 interface HierarchicalTrace {
   trace: any;
@@ -198,7 +222,7 @@ export async function POST(req: NextRequest) {
     const apiKey = req.headers.get("x-api-key");
     let { page, pageSize, projectId, filters, group, keyword } = await req.json();
 
-    // Authentication and authorization logic (same as original /api/traces)
+    // Enhanced authentication logic (supports both traditional and agent API keys)
     if (!session || !session.user) {
       if (apiKey) {
         const project = await prisma.project.findFirst({
@@ -214,7 +238,18 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        if (apiKey && project.apiKeyHash !== hashApiKey(apiKey)) {
+        // Check traditional PostgreSQL API key first
+        let isValidApiKey = false;
+        if (project.apiKeyHash && project.apiKeyHash === hashApiKey(apiKey)) {
+          isValidApiKey = true;
+        }
+        
+        // If traditional API key validation fails, check ClickHouse agent API keys
+        if (!isValidApiKey) {
+          isValidApiKey = await validateAgentApiKey(apiKey, projectId);
+        }
+
+        if (!isValidApiKey) {
           return NextResponse.json(
             { error: "Unauthorized. Invalid API key" },
             { status: 401 }

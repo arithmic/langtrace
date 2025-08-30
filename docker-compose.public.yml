@@ -1,0 +1,80 @@
+# Docker Compose for Public Docker Image Usage
+# This file helps others run your public Docker image easily
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: langtrace-postgres
+    environment:
+      POSTGRES_USER: ltuser
+      POSTGRES_PASSWORD: ltpasswd
+      POSTGRES_DB: langtrace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - langtrace-network
+
+  # ClickHouse Database  
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: langtrace-clickhouse
+    environment:
+      CLICKHOUSE_USER: lt_clickhouse_user
+      CLICKHOUSE_PASSWORD: clickhousepw
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - langtrace-network
+
+  # Langtrace Application (Your Public Image)
+  langtrace:
+    image: your-username/langtrace:latest  # Replace with your actual image
+    container_name: langtrace-app
+    environment:
+      # Database connections
+      POSTGRES_HOST: "langtrace-postgres:5432"
+      POSTGRES_USER: "ltuser"
+      POSTGRES_PASSWORD: "ltpasswd"
+      POSTGRES_DATABASE: "langtrace"
+      CLICK_HOUSE_HOST: "http://langtrace-clickhouse:8123"
+      CLICK_HOUSE_USER: "lt_clickhouse_user"
+      CLICK_HOUSE_PASSWORD: "clickhousepw"
+      CLICK_HOUSE_DATABASE_NAME: "langtrace_traces"
+      
+      # App settings
+      NEXT_PUBLIC_HOST: "http://localhost:3000"
+      NEXTAUTH_SECRET: "difficultsecret"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_ENVIRONMENT: "production"
+      NEXT_PUBLIC_APP_NAME: "Langtrace"
+      
+      # Admin access
+      ADMIN_EMAIL: "admin@langtrace.ai"
+      ADMIN_PASSWORD: "langtraceadminpw"
+      NEXT_PUBLIC_ENABLE_ADMIN_LOGIN: "true"
+    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - clickhouse
+    networks:
+      - langtrace-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+
+networks:
+  langtrace-network:
+    driver: bridge
