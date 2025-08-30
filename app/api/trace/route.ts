@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     let data;
     if (contentType === "application/x-protobuf") {
       data = await decodeProtobuf(req);
+      console.log("Decoded protobuf data:", JSON.stringify(data, null, 2));
     } else {
       data = await req.json();
     }
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
     ) {
       // coming from an OTEL exporter
       data.resourceSpans?.[0].scopeSpans.forEach((scopeSpan: any) => {
-        scopeSpan.spans.forEach((span: any) => spans.push(span));
+        scopeSpan.spans.forEach((span: any) => {
+          console.log(`Raw span "${span.name}" events:`, JSON.stringify(span.events, null, 2));
+          spans.push(span);
+        });
       });
       normalized = prepareForClickhouse(normalizeOTELData(spans));
     } else {

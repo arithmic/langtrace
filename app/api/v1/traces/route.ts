@@ -15,8 +15,8 @@ import { promisify } from "util";
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type");
-    // console.log("content-type",contentType);
-    // console.log("req : ",req);
+    console.log("content-type",contentType);
+    console.log("req : ",req);
     let data;
     if (contentType === "application/x-protobuf") {
       data = await decodeProtobuf(req);
@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = req.headers.get("x-api-key");
-    // console.error("APi key = ",apiKey)
-    // console.error("data = ",data);
+    console.error("APi key = ",apiKey)
+    console.error("data = ",data);
     const userAgent = req.headers.get("user-agent");
 
     const response = await authApiKey(apiKey!);
@@ -55,6 +55,15 @@ export async function POST(req: NextRequest) {
         });
       }
       console.log("Extracted spans:", spans.length, spans);
+      
+      // Log raw events from extracted spans
+      console.log("=== RAW SPAN EVENTS CHECK ===");
+      spans.forEach((span: any, index: number) => {
+        console.log(`Raw Span ${index} (${span.name}) events property:`, span.events);
+        console.log(`Raw Span ${index} events type:`, typeof span.events);
+        console.log(`Raw Span ${index} events length:`, span.events ? span.events.length : 'undefined');
+      });
+      console.log("=== END RAW SPAN EVENTS CHECK ===");
       
       // Convert base64 trace/span IDs to hex format for protobuf data
       const processedSpans = spans.map((span: any) => {
@@ -99,10 +108,60 @@ export async function POST(req: NextRequest) {
         return processed;
       });
       
+      // Log events before normalization
+      console.log("=== EVENTS LOGGING ===");
+      processedSpans.forEach((span: any, index: any) => {
+        if (span.events && span.events.length > 0) {
+          console.log(`Span ${index} (${span.name}) has ${span.events.length} events:`, JSON.stringify(span.events, null, 2));
+        } else {
+          console.log(`Span ${index} (${span.name}) has no events`);
+        }
+      });
+      console.log("=== END EVENTS LOGGING ===");
+      
       normalized = prepareForClickhouse(normalizeOTELData(processedSpans));
       console.log("Normalized data:", normalized.length, normalized);
+      
+      // Log events after normalization
+      console.log("=== NORMALIZED EVENTS LOGGING ===");
+      normalized.forEach((span, index) => {
+        if (span.events && span.events !== '[]' && span.events !== 'null') {
+          console.log(`Normalized Span ${index} (${span.name}) events:`, span.events);
+        } else {
+          console.log(`Normalized Span ${index} (${span.name}) has no events`);
+        }
+      });
+      console.log("=== END NORMALIZED EVENTS LOGGING ===");
     } else {
+      // Log events for non-OTEL data
+      console.log("=== NON-OTEL EVENTS LOGGING ===");
+      if (Array.isArray(data)) {
+        data.forEach((item, index) => {
+          if (item.events && item.events.length > 0) {
+            console.log(`Data item ${index} (${item.name}) has ${item.events.length} events:`, JSON.stringify(item.events, null, 2));
+          } else {
+            console.log(`Data item ${index} (${item.name || 'unnamed'}) has no events`);
+          }
+        });
+      } else if (data.events) {
+        console.log(`Single data item has ${data.events.length} events:`, JSON.stringify(data.events, null, 2));
+      } else {
+        console.log("No events found in non-OTEL data");
+      }
+      console.log("=== END NON-OTEL EVENTS LOGGING ===");
+      
       normalized = prepareForClickhouse(normalizeData(data));
+      
+      // Log events after normalization for non-OTEL
+      console.log("=== NON-OTEL NORMALIZED EVENTS LOGGING ===");
+      normalized.forEach((span, index) => {
+        if (span.events && span.events !== '[]' && span.events !== 'null') {
+          console.log(`Non-OTEL Normalized Span ${index} (${span.name}) events:`, span.events);
+        } else {
+          console.log(`Non-OTEL Normalized Span ${index} (${span.name}) has no events`);
+        }
+      });
+      console.log("=== END NON-OTEL NORMALIZED EVENTS LOGGING ===");
     }
     const traceService = new TraceService();
 
