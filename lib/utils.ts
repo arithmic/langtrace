@@ -170,6 +170,7 @@ export interface Normalized {
   attributes: LangTraceAttributes;
   events: [];
   links: [];
+  session_id?: string;
 }
 
 function convertDurationToMicroseconds(duration: [number, number]): number {
@@ -413,6 +414,7 @@ export function prepareForClickhouse(spans: Normalized[]): Span[] {
         events: JSON.stringify(span.events),
         links: JSON.stringify(span.links),
         duration: span.duration,
+        session_id: span.session_id || "",
       };
     } catch (error) {
       throw new Error(
@@ -434,7 +436,7 @@ export function fillPromptStringTemplate(
 //TODO: Move to a middleware
 export function parseQueryString(url: string): Record<string, any> {
   return qs.parse(url.split("?")[1], {
-    decoder(str) {
+    decoder(str: string) {
       if (str === "true") return true;
       if (str === "false") return false;
       try {

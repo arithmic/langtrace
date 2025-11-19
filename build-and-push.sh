@@ -6,8 +6,8 @@
 set -e  # Exit on any error
 
 # Configuration - CHANGE THESE VALUES
-DOCKERHUB_USERNAME="kuldeeparithmic"  # Replace with your DockerHub username
-REPOSITORY_NAME="folium-langtrace"
+DOCKERHUB_USERNAME="arithmicneeraj"  # Replace with your DockerHub username
+REPOSITORY_NAME="nasiko-langtrace"
 DEFAULT_TAG="latest"
 
 # Colors for output

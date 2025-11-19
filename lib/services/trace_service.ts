@@ -113,6 +113,7 @@ export interface ITraceService {
     type: string,
     lastXDays: string
   ) => Promise<number>;
+  GetSessionsInProject: (project_id: string) => Promise<any[]>;
 }
 
 export class TraceService implements ITraceService {
@@ -1319,6 +1320,45 @@ export class TraceService implements ITraceService {
     } catch (error) {
       throw new Error(
         `An error occurred while trying to get the total spans ${error}`
+      );
+    }
+  }
+
+  async GetSessionsInProject(project_id: string): Promise<any[]> {
+    try {
+      const tableExists = await this.client.checkTableExists(project_id);
+      if (!tableExists) {
+        return [];
+      }
+
+      const query = sql
+        .select([
+          `DISTINCT JSONExtractString(attributes, 'session_id') AS session_id`,
+          `MIN(start_time) AS first_activity`,
+          `MAX(start_time) AS last_activity`,
+          `COUNT(*) AS span_count`,
+          `COUNT(DISTINCT trace_id) AS trace_count`
+        ])
+        .from(project_id)
+        .where(sql.notEq(`JSONExtractString(attributes, 'session_id')`, ""))
+        .groupBy(`JSONExtractString(attributes, 'session_id')`)
+        .orderBy("last_activity DESC");
+
+      const sessions = await this.client.find<any[]>(query);
+
+      // Filter out empty session IDs and format response
+      return sessions
+        .filter(session => session.session_id && session.session_id.trim() !== "")
+        .map(session => ({
+          session_id: session.session_id,
+          first_activity: session.first_activity,
+          last_activity: session.last_activity,
+          span_count: parseInt(session.span_count),
+          trace_count: parseInt(session.trace_count)
+        }));
+    } catch (error) {
+      throw new Error(
+        `An error occurred while trying to get sessions: ${error}`
       );
     }
   }

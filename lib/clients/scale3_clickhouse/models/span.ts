@@ -19,6 +19,7 @@ export const SpanSchema = new ClickhouseSchema(
     events: { type: ClickhouseDataTypes.String },
     links: { type: ClickhouseDataTypes.String },
     duration: { type: ClickhouseDataTypes.Float64 },
+    session_id: { type: ClickhouseDataTypes.String },
   },
   {}
 );
